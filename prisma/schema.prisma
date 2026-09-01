@@ -1,0 +1,540 @@
+// ============================================================================
+// Home Accounting & Personal Finance Management — Prisma Schema
+// Database: PostgreSQL
+// ============================================================================
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------------------------
+
+enum Role {
+  ADMIN // full access
+  MEMBER // can add/edit transactions
+  VIEWER // view only
+  REPORTS_ONLY // reports only
+}
+
+enum AccountType {
+  BANK
+  CASH
+  SAVINGS
+  CREDIT_CARD
+  DIGITAL_WALLET
+  OTHER
+}
+
+enum CategoryKind {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  DEBT_PAYMENT
+  RECEIVABLE_PAYMENT
+}
+
+enum Frequency {
+  ONE_TIME
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum BudgetPeriod {
+  MONTHLY
+  YEARLY
+}
+
+enum ReceivableStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+enum RateSource {
+  MANUAL
+  API
+}
+
+enum NotificationType {
+  BILL_REMINDER
+  BUDGET_ALERT
+  SUBSCRIPTION_REMINDER
+  DEBT_REMINDER
+  GOAL_MILESTONE
+  SYSTEM
+}
+
+// ----------------------------------------------------------------------------
+// HOUSEHOLD & USERS  (architecture supports multiple family members)
+// ----------------------------------------------------------------------------
+
+model Household {
+  id            String   @id @default(cuid())
+  name          String
+  baseCurrency  String   @default("USD")
+  dateFormat    String   @default("DD/MM/YYYY")
+  language      String   @default("en")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users          User[]
+  accounts       Account[]
+  categories     Category[]
+  paymentMethods PaymentMethod[]
+  transactions   Transaction[]
+  recurringRules RecurringRule[]
+  bills          Bill[]
+  subscriptions  Subscription[]
+  budgets        Budget[]
+  savingsGoals   SavingsGoal[]
+  debts          Debt[]
+  receivables    Receivable[]
+  exchangeRates  ExchangeRate[]
+  notifications  Notification[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  householdId  String
+  household    Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([householdId])
+}
+
+// ----------------------------------------------------------------------------
+// ACCOUNTS
+// ----------------------------------------------------------------------------
+
+model Account {
+  id             String      @id @default(cuid())
+  householdId    String
+  household      Household   @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name           String
+  type           AccountType
+  currency       String
+  openingBalance Float       @default(0)
+  color          String?
+  icon           String?
+  archived       Boolean     @default(false)
+  isDemo         Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  transactionsFrom Transaction[] @relation("AccountFrom")
+  transactionsTo   Transaction[] @relation("AccountTo")
+  bills            Bill[]
+  subscriptions    Subscription[]
+  debtPayments     DebtPayment[]
+  receivablePayments ReceivablePayment[]
+  savingsGoals     SavingsGoal[]
+  savingsContributions SavingsContribution[]
+
+  @@index([householdId])
+}
+
+// ----------------------------------------------------------------------------
+// CATEGORIES & PAYMENT METHODS
+// ----------------------------------------------------------------------------
+
+model Category {
+  id          String       @id @default(cuid())
+  householdId String
+  household   Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name        String
+  kind        CategoryKind
+  color       String       @default("#6366f1")
+  icon        String       @default("Wallet")
+  isDefault   Boolean      @default(false)
+  parentId    String?
+  parent      Category?    @relation("SubCategories", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[]   @relation("SubCategories")
+  createdAt   DateTime     @default(now())
+
+  transactions Transaction[]
+  bills        Bill[]
+  subscriptions Subscription[]
+  budgets      Budget[]
+
+  @@unique([householdId, name, kind, parentId])
+  @@index([householdId])
+}
+
+model PaymentMethod {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name        String
+  isDefault   Boolean   @default(false)
+
+  transactions Transaction[]
+
+  @@unique([householdId, name])
+}
+
+// ----------------------------------------------------------------------------
+// CURRENCY & EXCHANGE RATES
+// ----------------------------------------------------------------------------
+
+model Currency {
+  code   String @id // e.g. USD, LBP, EUR
+  name   String
+  symbol String
+}
+
+model ExchangeRate {
+  id          String     @id @default(cuid())
+  householdId String
+  household   Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  baseCurrency   String
+  targetCurrency String
+  rate        Float // 1 baseCurrency = rate targetCurrency
+  date        DateTime // the day this rate is effective
+  source      RateSource @default(MANUAL)
+  createdAt   DateTime   @default(now())
+
+  @@unique([householdId, baseCurrency, targetCurrency, date])
+  @@index([householdId, baseCurrency, targetCurrency, date])
+}
+
+// ----------------------------------------------------------------------------
+// RECURRING RULES (used by income & expenses)
+// ----------------------------------------------------------------------------
+
+model RecurringRule {
+  id           String    @id @default(cuid())
+  householdId  String
+  household    Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  frequency    Frequency
+  interval     Int       @default(1) // every N periods
+  startDate    DateTime
+  endDate      DateTime?
+  nextRunDate  DateTime
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+
+  transactions Transaction[]
+
+  @@index([householdId])
+}
+
+// ----------------------------------------------------------------------------
+// TRANSACTIONS  (income / expense / transfer / debt payment / receivable payment)
+// ----------------------------------------------------------------------------
+
+model Transaction {
+  id              String          @id @default(cuid())
+  householdId     String
+  household       Household       @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  type            TransactionType
+  date            DateTime
+  amount          Float // ORIGINAL amount, always in `currency` below. Never overwritten by conversion.
+  currency        String
+  baseAmount      Float // amount converted to household baseCurrency, snapshot at transaction time
+  baseCurrency    String
+  exchangeRate    Float           @default(1) // rate used: 1 currency = exchangeRate baseCurrency
+
+  accountId       String
+  account         Account         @relation("AccountFrom", fields: [accountId], references: [id])
+  toAccountId     String? // only for TRANSFER
+  toAccount       Account?        @relation("AccountTo", fields: [toAccountId], references: [id])
+
+  categoryId      String?
+  category        Category?       @relation(fields: [categoryId], references: [id])
+  subcategory     String?
+
+  payee           String?
+  description     String?
+  paymentMethodId String?
+  paymentMethod   PaymentMethod?  @relation(fields: [paymentMethodId], references: [id])
+  notes           String?
+
+  isRecurring     Boolean         @default(false)
+  recurringRuleId String?
+  recurringRule   RecurringRule?  @relation(fields: [recurringRuleId], references: [id])
+
+  billId          String?
+  bill            Bill?           @relation(fields: [billId], references: [id])
+  subscriptionId  String?
+  subscription    Subscription?   @relation(fields: [subscriptionId], references: [id])
+  debtId          String?
+  debt            Debt?           @relation(fields: [debtId], references: [id])
+  receivableId    String?
+  receivable      Receivable?     @relation(fields: [receivableId], references: [id])
+  savingsGoalId   String?
+  savingsGoal     SavingsGoal?    @relation(fields: [savingsGoalId], references: [id])
+
+  isDemo          Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  attachments     Attachment[]
+
+  @@index([householdId, date])
+  @@index([householdId, type])
+  @@index([accountId])
+  @@index([categoryId])
+}
+
+// ----------------------------------------------------------------------------
+// BILLS
+// ----------------------------------------------------------------------------
+
+model Bill {
+  id            String     @id @default(cuid())
+  householdId   String
+  household     Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name          String
+  amount        Float
+  currency      String
+  dueDate       DateTime // next due date
+  frequency     Frequency  @default(MONTHLY)
+  categoryId    String?
+  category      Category?  @relation(fields: [categoryId], references: [id])
+  accountId     String?
+  account       Account?   @relation(fields: [accountId], references: [id])
+  lastPaidDate  DateTime?
+  autoReminder  Boolean    @default(true)
+  notes         String?
+  isDemo        Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  transactions  Transaction[]
+  attachments   Attachment[]
+
+  @@index([householdId])
+}
+
+// ----------------------------------------------------------------------------
+// SUBSCRIPTIONS
+// ----------------------------------------------------------------------------
+
+model Subscription {
+  id              String     @id @default(cuid())
+  householdId     String
+  household       Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name            String
+  amount          Float
+  currency        String
+  billingCycle    Frequency  @default(MONTHLY)
+  nextPaymentDate DateTime
+  categoryId      String?
+  category        Category?  @relation(fields: [categoryId], references: [id])
+  accountId       String?
+  account         Account?   @relation(fields: [accountId], references: [id])
+  active          Boolean    @default(true)
+  notes           String?
+  isDemo          Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  transactions    Transaction[]
+
+  @@index([householdId])
+}
+
+// ----------------------------------------------------------------------------
+// BUDGETS
+// ----------------------------------------------------------------------------
+
+model Budget {
+  id          String       @id @default(cuid())
+  householdId String
+  household   Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  amount      Float
+  currency    String
+  period      BudgetPeriod @default(MONTHLY)
+  month       Int? // 1-12, null when period = YEARLY
+  year        Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([householdId, categoryId, period, month, year])
+  @@index([householdId, year, month])
+}
+
+// ----------------------------------------------------------------------------
+// SAVINGS GOALS
+// ----------------------------------------------------------------------------
+
+model SavingsGoal {
+  id             String    @id @default(cuid())
+  householdId    String
+  household      Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name           String
+  targetAmount   Float
+  currency       String
+  currentAmount  Float     @default(0)
+  deadline       DateTime?
+  monthlyTarget  Float?
+  accountId      String?
+  account        Account?  @relation(fields: [accountId], references: [id])
+  notes          String?
+  achieved       Boolean   @default(false)
+  isDemo         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  contributions  SavingsContribution[]
+  transactions   Transaction[]
+
+  @@index([householdId])
+}
+
+model SavingsContribution {
+  id            String      @id @default(cuid())
+  savingsGoalId String
+  savingsGoal   SavingsGoal @relation(fields: [savingsGoalId], references: [id], onDelete: Cascade)
+  accountId     String?
+  account       Account?    @relation(fields: [accountId], references: [id])
+  amount        Float
+  date          DateTime
+  notes         String?
+  createdAt     DateTime    @default(now())
+
+  @@index([savingsGoalId])
+}
+
+// ----------------------------------------------------------------------------
+// DEBTS (money I owe)
+// ----------------------------------------------------------------------------
+
+model Debt {
+  id              String        @id @default(cuid())
+  householdId     String
+  household       Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  creditor        String
+  originalAmount  Float
+  remainingAmount Float
+  currency        String
+  dueDate         DateTime?
+  interestRate    Float         @default(0)
+  monthlyPayment  Float?
+  notes           String?
+  isDemo          Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  payments        DebtPayment[]
+  transactions    Transaction[]
+  attachments     Attachment[]
+
+  @@index([householdId])
+}
+
+model DebtPayment {
+  id        String   @id @default(cuid())
+  debtId    String
+  debt      Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id])
+  amount    Float
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([debtId])
+}
+
+// ----------------------------------------------------------------------------
+// RECEIVABLES (money owed to me)
+// ----------------------------------------------------------------------------
+
+model Receivable {
+  id          String           @id @default(cuid())
+  householdId String
+  household   Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  person      String
+  amount      Float
+  currency    String
+  date        DateTime
+  dueDate     DateTime?
+  description String?
+  status      ReceivableStatus @default(UNPAID)
+  notes       String?
+  isDemo      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  payments      ReceivablePayment[]
+  transactions  Transaction[]
+  attachments   Attachment[]
+
+  @@index([householdId])
+}
+
+model ReceivablePayment {
+  id           String     @id @default(cuid())
+  receivableId String
+  receivable   Receivable @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+  accountId    String?
+  account      Account?   @relation(fields: [accountId], references: [id])
+  amount       Float
+  date         DateTime
+  notes        String?
+  createdAt    DateTime   @default(now())
+
+  @@index([receivableId])
+}
+
+// ----------------------------------------------------------------------------
+// ATTACHMENTS
+// ----------------------------------------------------------------------------
+
+model Attachment {
+  id            String       @id @default(cuid())
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  billId        String?
+  bill          Bill?        @relation(fields: [billId], references: [id], onDelete: Cascade)
+  debtId        String?
+  debt          Debt?        @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  receivableId  String?
+  receivable    Receivable?  @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+  filename      String // original filename
+  storedName    String // filename on disk
+  mimeType      String
+  size          Int
+  createdAt     DateTime     @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// NOTIFICATIONS
+// ----------------------------------------------------------------------------
+
+model Notification {
+  id          String           @id @default(cuid())
+  householdId String
+  household   Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  title       String
+  message     String
+  read        Boolean          @default(false)
+  relatedId   String?
+  createdAt   DateTime         @default(now())
+
+  @@index([householdId, read])
+}

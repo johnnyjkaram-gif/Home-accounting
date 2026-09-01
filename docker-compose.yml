@@ -1,0 +1,17 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: home-accounting-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: homeacct
+      POSTGRES_PASSWORD: homeacct_dev_password
+      POSTGRES_DB: home_accounting
+    ports:
+      - '5432:5432'
+    volumes:
+      - home_accounting_pgdata:/var/lib/postgresql/data
+
+volumes:
+  home_accounting_pgdata:
