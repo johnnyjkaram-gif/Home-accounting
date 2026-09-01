@@ -7,9 +7,10 @@ import { DEFAULT_CURRENCIES } from '@/lib/constants';
 import { Modal } from '@/components/ui/modal';
 import { CategoryForm } from '@/components/forms/category-form';
 import { ExchangeRateForm } from '@/components/forms/exchange-rate-form';
+import { FamilyMemberForm } from '@/components/forms/family-member-form';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useAction } from '@/lib/use-action';
-import { updateGeneralSettings, changePassword, deleteDemoData, deleteAllData, addCurrency, refreshExchangeRates } from '@/lib/actions/settings';
+import { updateGeneralSettings, changePassword, deleteDemoData, deleteAllData, addCurrency, refreshExchangeRates, removeFamilyMember } from '@/lib/actions/settings';
 import { deleteCategory, createPaymentMethod, deletePaymentMethod } from '@/lib/actions/categories';
 import { deleteExchangeRate } from '@/lib/actions/settings';
 import { formatDateLong } from '@/lib/utils';
@@ -26,7 +27,7 @@ const TABS = [
   { key: 'data', label: 'Data', icon: Database },
 ];
 
-export function SettingsPageClient({ household, categories, exchangeRates, paymentMethods, users, currentRole, currencies, liveRatesConfigured }: any) {
+export function SettingsPageClient({ household, categories, exchangeRates, paymentMethods, users, currentRole, currentUserId, currencies, liveRatesConfigured }: any) {
   const [tab, setTab] = useState('general');
   const router = useRouter();
 
@@ -48,7 +49,7 @@ export function SettingsPageClient({ household, categories, exchangeRates, payme
       {tab === 'general' && <GeneralTab household={household} />}
       {tab === 'currency' && <CurrencyTab household={household} exchangeRates={exchangeRates} currencies={currencies} liveRatesConfigured={liveRatesConfigured} />}
       {tab === 'categories' && <CategoriesTab categories={categories} />}
-      {tab === 'family' && <FamilyTab users={users} currentRole={currentRole} />}
+      {tab === 'family' && <FamilyTab users={users} currentRole={currentRole} currentUserId={currentUserId} />}
       {tab === 'notifications' && <NotificationsTab />}
       {tab === 'security' && <SecurityTab />}
       {tab === 'data' && <DataTab paymentMethods={paymentMethods} />}
@@ -287,32 +288,67 @@ function CategoriesTab({ categories }: any) {
   );
 }
 
-function FamilyTab({ users, currentRole }: any) {
+function FamilyTab({ users, currentRole, currentUserId }: any) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const router = useRouter();
+  const { confirm, dialog } = useConfirm();
+  const isAdmin = currentRole === 'ADMIN';
+
+  function close() { setModalOpen(false); router.refresh(); }
+
+  async function onRemove(u: any) {
+    const ok = await confirm('Remove this family member?', `${u.name} (${u.email}) will no longer be able to sign in.`);
+    if (!ok) return;
+    const res = await removeFamilyMember(u.id);
+    if (res.ok) { toast.success('Family member removed'); router.refresh(); }
+    else toast.error(res.error);
+  }
+
   return (
     <div className="space-y-4">
-      <div className="card p-5">
+      <div className="card p-5 flex items-start justify-between gap-4">
         <p className="text-sm text-muted-foreground">
-          Your household supports multiple members with different permission levels: <strong className="text-foreground">Admin</strong> (full access),
+          Everyone below shares this household's data — the same accounts, transactions, budgets, and reports — at their own
+          permission level: <strong className="text-foreground">Admin</strong> (full access, can add/remove family members),
           <strong className="text-foreground"> Member</strong> (can add/edit transactions), and <strong className="text-foreground">Viewer / Reports Only</strong> (read-only).
-          Inviting additional members by email is planned — for now, additional accounts can be created directly in the database against this household.
+          {!isAdmin && ' Only an Admin can add or remove family members.'}
         </p>
+        {isAdmin && (
+          <button className="btn-primary shrink-0" onClick={() => setModalOpen(true)}><Plus className="h-4 w-4" /> Add Family Member</button>
+        )}
       </div>
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
-            <tr><th className="text-left font-medium px-4 py-3">Name</th><th className="text-left font-medium px-4 py-3">Email</th><th className="text-left font-medium px-4 py-3">Role</th></tr>
+            <tr>
+              <th className="text-left font-medium px-4 py-3">Name</th>
+              <th className="text-left font-medium px-4 py-3">Email</th>
+              <th className="text-left font-medium px-4 py-3">Role</th>
+              {isAdmin && <th className="px-4 py-3" />}
+            </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {users.map((u: any) => (
               <tr key={u.id}>
-                <td className="px-4 py-3">{u.name}{u.role === currentRole ? '' : ''}</td>
+                <td className="px-4 py-3">{u.name}{u.id === currentUserId && <span className="text-muted-foreground"> (you)</span>}</td>
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
                 <td className="px-4 py-3">{u.role}</td>
+                {isAdmin && (
+                  <td className="px-4 py-3 text-right">
+                    {u.id !== currentUserId && (
+                      <button className="btn-ghost btn-sm !px-1.5 text-danger" onClick={() => onRemove(u)}><Trash2 className="h-3.5 w-3.5" /></button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <Modal open={modalOpen} onClose={close} title="Add family member" size="sm">
+        <FamilyMemberForm onSuccess={close} />
+      </Modal>
+      {dialog}
     </div>
   );
 }

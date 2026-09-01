@@ -24,6 +24,7 @@ export default async function SettingsPage() {
       paymentMethods={paymentMethods}
       users={users}
       currentRole={session!.user.role}
+      currentUserId={session!.user.id}
       currencies={currencies}
       liveRatesConfigured={isLiveRatesConfigured()}
     />

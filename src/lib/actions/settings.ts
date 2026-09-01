@@ -8,9 +8,11 @@ import {
   currencySchema,
   exchangeRateSchema,
   changePasswordSchema,
+  familyMemberSchema,
 } from '@/lib/validations';
 import { requireHousehold, safeAction, type ActionResult } from '@/lib/server/action-utils';
 import { fetchLatestRates, isLiveRatesConfigured } from '@/lib/exchange-rate-api';
+import { isAdmin } from '@/lib/auth';
 
 export async function updateGeneralSettings(raw: unknown): Promise<ActionResult<{ id: string }>> {
   return safeAction(async () => {
@@ -177,5 +179,56 @@ export async function deleteAllData(confirmText: string): Promise<ActionResult<u
     ]);
     revalidatePath('/');
     return undefined;
+  });
+}
+
+/**
+ * Admin-only: creates a new login directly inside the acting admin's household
+ * (so it shares the same data — accounts, transactions, budgets, etc.). This is
+ * the "add family member" flow that stands in for a full email-invite system,
+ * which isn't built (see the Family Users tab in Settings for the plain-language
+ * explanation shown to the user).
+ */
+export async function addFamilyMember(raw: unknown): Promise<ActionResult<{ id: string }>> {
+  return safeAction(async () => {
+    const { householdId, role: actingRole } = await requireHousehold();
+    if (!isAdmin(actingRole)) {
+      throw new Error('Only an Admin can add family members.');
+    }
+    const data = familyMemberSchema.parse(raw);
+    const email = data.email.toLowerCase().trim();
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new Error('An account with this email already exists.');
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 12);
+    const user = await prisma.user.create({
+      data: { householdId, name: data.name, email, passwordHash, role: data.role },
+    });
+
+    revalidatePath('/settings');
+    return { id: user.id };
+  });
+}
+
+/** Admin-only: removes another user from the household. You can't remove yourself this way. */
+export async function removeFamilyMember(id: string): Promise<ActionResult<{ id: string }>> {
+  return safeAction(async () => {
+    const { householdId, userId, role: actingRole } = await requireHousehold();
+    if (!isAdmin(actingRole)) {
+      throw new Error('Only an Admin can remove family members.');
+    }
+    if (id === userId) {
+      throw new Error('You cannot remove your own account here. Ask another Admin, or use Settings → Security.');
+    }
+    const existing = await prisma.user.findFirst({ where: { id, householdId } });
+    if (!existing) {
+      throw new Error('User not found.');
+    }
+    await prisma.user.delete({ where: { id } });
+    revalidatePath('/settings');
+    return { id };
   });
 }

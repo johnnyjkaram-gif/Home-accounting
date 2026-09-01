@@ -13,6 +13,18 @@ export const registerSchema = z.object({
   baseCurrency: z.string().min(3).max(10).default('USD'),
 });
 
+export const familyMemberSchema = z.object({
+  name: z.string().min(2, 'Name is required').max(100),
+  email: z.string().email('Enter a valid email address').max(255),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(200)
+    .regex(/[A-Za-z]/, 'Password must include a letter')
+    .regex(/[0-9]/, 'Password must include a number'),
+  role: z.enum(['ADMIN', 'MEMBER', 'VIEWER', 'REPORTS_ONLY']).default('MEMBER'),
+});
+
 export const accountSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required').max(100),
