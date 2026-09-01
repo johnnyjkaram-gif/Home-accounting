@@ -31,6 +31,29 @@ export function TransferForm({ onSuccess }: { onSuccess: () => void }) {
     run({ ...values, date: new Date(values.date) });
   }
 
+  if (activeAccounts.length === 0) {
+    return (
+      <div className="space-y-3 text-sm">
+        <p className="text-muted-foreground">
+          You don't have any accounts yet, so there's nothing to transfer between. Add at least two accounts first,
+          then come back to move money between them.
+        </p>
+        <a href="/accounts" className="btn-primary inline-flex w-full justify-center">Go to Accounts</a>
+      </div>
+    );
+  }
+
+  if (activeAccounts.length < 2) {
+    return (
+      <div className="space-y-3 text-sm">
+        <p className="text-muted-foreground">
+          You only have one account so far. Add a second account to transfer money between them.
+        </p>
+        <a href="/accounts" className="btn-primary inline-flex w-full justify-center">Go to Accounts</a>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">

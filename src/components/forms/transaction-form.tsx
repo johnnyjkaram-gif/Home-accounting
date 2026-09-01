@@ -60,6 +60,7 @@ export function TransactionForm({
   const [uploading, setUploading] = useState(false);
 
   const relevantCategories = categories.filter((c) => c.kind === type);
+  const activeAccounts = accounts.filter((a) => !a.archived);
 
   const { run, pending, fieldErrors } = useAction(values.id ? updateTransaction : createTransaction, async (data) => {
     if (file && data?.id) {
@@ -93,6 +94,18 @@ export function TransactionForm({
     });
   }
 
+  if (activeAccounts.length === 0) {
+    return (
+      <div className="space-y-3 text-sm">
+        <p className="text-muted-foreground">
+          You don't have any accounts yet, so there's nothing to select here. Add one first — a bank account, cash
+          wallet, or card — then come back to record this {type === 'INCOME' ? 'income' : 'expense'}.
+        </p>
+        <a href="/accounts" className="btn-primary inline-flex w-full justify-center">Go to Accounts</a>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -121,7 +134,7 @@ export function TransactionForm({
           <label className="label">Account</label>
           <select required className="select" value={values.accountId} onChange={(e) => setValues({ ...values, accountId: e.target.value })}>
             <option value="" disabled>Select account</option>
-            {accounts.filter((a) => !a.archived).map((a) => (
+            {activeAccounts.map((a) => (
               <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>
             ))}
           </select>

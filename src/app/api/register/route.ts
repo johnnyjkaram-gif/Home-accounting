@@ -45,6 +45,11 @@ export async function POST(req: NextRequest) {
         paymentMethods: {
           create: DEFAULT_PAYMENT_METHODS.map((name, i) => ({ name, isDefault: i === 0 })),
         },
+        accounts: {
+          create: [
+            { name: 'Cash Wallet', type: 'CASH', currency: data.baseCurrency, openingBalance: 0 },
+          ],
+        },
       },
     });
 
