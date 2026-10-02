@@ -2,15 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Plus, TrendingUp, TrendingDown, ArrowLeftRight, HandCoins, Users, ChevronDown } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, ArrowLeftRight, HandCoins, ChevronDown } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { TransactionForm } from '@/components/forms/transaction-form';
 import { TransferForm } from '@/components/forms/transfer-form';
 import { DebtForm } from '@/components/forms/debt-form';
-import { ReceivableForm } from '@/components/forms/receivable-form';
 import { cn } from '@/lib/utils';
 
-type Action = 'income' | 'expense' | 'transfer' | 'debt' | 'receivable' | null;
+type Action = 'income' | 'expense' | 'transfer' | 'debt' | null;
 
 export function QuickAddMenu({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
@@ -22,12 +21,14 @@ export function QuickAddMenu({ className }: { className?: string }) {
     router.refresh();
   }
 
+  // "Add Receivable" was dropped from here along with the Receivables section
+  // itself — this household doesn't use it. Re-add it (icon: Users from
+  // lucide-react, form: ReceivableForm) if that changes.
   const items: { key: Action; label: string; icon: any }[] = [
     { key: 'income', label: 'Add Income', icon: TrendingUp },
     { key: 'expense', label: 'Add Expense', icon: TrendingDown },
     { key: 'transfer', label: 'Transfer', icon: ArrowLeftRight },
     { key: 'debt', label: 'Add Debt', icon: HandCoins },
-    { key: 'receivable', label: 'Add Receivable', icon: Users },
   ];
 
   return (
@@ -65,9 +66,6 @@ export function QuickAddMenu({ className }: { className?: string }) {
       </Modal>
       <Modal open={active === 'debt'} onClose={close} title="Add Debt">
         <DebtForm onSuccess={close} />
-      </Modal>
-      <Modal open={active === 'receivable'} onClose={close} title="Add Receivable">
-        <ReceivableForm onSuccess={close} />
       </Modal>
     </div>
   );

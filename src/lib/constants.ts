@@ -1,12 +1,6 @@
 export const DEFAULT_INCOME_CATEGORIES = [
-  { name: 'Salary', color: '#22c55e', icon: 'Wallet' },
-  { name: 'Business', color: '#16a34a', icon: 'Briefcase' },
-  { name: 'Freelance', color: '#0ea5e9', icon: 'Laptop' },
-  { name: 'Investments', color: '#8b5cf6', icon: 'TrendingUp' },
-  { name: 'Interest', color: '#06b6d4', icon: 'Percent' },
-  { name: 'Rental Income', color: '#f59e0b', icon: 'Home' },
-  { name: 'Sales', color: '#ec4899', icon: 'Tag' },
-  { name: 'Other', color: '#64748b', icon: 'MoreHorizontal' },
+  { name: 'NJMC', color: '#22c55e', icon: 'Wallet' },
+  { name: 'School', color: '#0ea5e9', icon: 'GraduationCap' },
 ];
 
 export const DEFAULT_EXPENSE_CATEGORIES = [
