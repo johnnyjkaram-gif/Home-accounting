@@ -34,6 +34,15 @@ export const DEFAULT_PAYMENT_METHODS = [
   'Other',
 ];
 
+// This household only pays by cash or one of the two named credit cards.
+// Older payment methods (Bank Transfer, Credit Card, Debit Card, Digital
+// Wallet, Online Payment, Other) can't be deleted outright because past
+// transactions still reference them, so instead they're just hidden from
+// the Add Income/Expense form — see VISIBLE_PAYMENT_METHODS usage in
+// transaction-form.tsx. They remain selectable in Settings for anyone who
+// wants to manage them, and a transaction already using one still shows it.
+export const VISIBLE_PAYMENT_METHODS = ['Cash', 'Credit Card Johnny', 'Credit Card Nadine'];
+
 export const DEFAULT_CURRENCIES = [
   { code: 'USD', name: 'US Dollar', symbol: '$' },
   { code: 'LBP', name: 'Lebanese Pound', symbol: 'ل.ل' },

@@ -7,6 +7,7 @@ import { useAction, fieldError } from '@/lib/use-action';
 import { toast } from 'sonner';
 import { Loader2, Paperclip } from 'lucide-react';
 import { uploadAttachment } from '@/lib/upload-attachment';
+import { VISIBLE_PAYMENT_METHODS } from '@/lib/constants';
 
 export interface TransactionFormValues {
   id?: string;
@@ -37,6 +38,12 @@ export function TransactionForm({
   onSuccess: () => void;
 }) {
   const { accounts, categories, paymentMethods, household } = useAppData();
+  // Only show the household's current payment methods on this form; older
+  // ones (kept for historical transactions) are hidden unless this is the
+  // one already attached to the transaction being edited.
+  const visiblePaymentMethods = paymentMethods.filter(
+    (pm) => VISIBLE_PAYMENT_METHODS.includes(pm.name) || pm.id === initial?.paymentMethodId,
+  );
   const today = new Date().toISOString().slice(0, 10);
   const [values, setValues] = useState<TransactionFormValues>({
     type,
@@ -48,7 +55,7 @@ export function TransactionForm({
     subcategory: initial?.subcategory ?? '',
     payee: initial?.payee ?? '',
     description: initial?.description ?? '',
-    paymentMethodId: initial?.paymentMethodId ?? paymentMethods[0]?.id ?? '',
+    paymentMethodId: initial?.paymentMethodId ?? visiblePaymentMethods[0]?.id ?? '',
     notes: initial?.notes ?? '',
     isRecurring: initial?.isRecurring ?? false,
     frequency: initial?.frequency ?? 'MONTHLY',
@@ -168,7 +175,7 @@ export function TransactionForm({
           <label className="label">Payment method</label>
           <select className="select" value={values.paymentMethodId} onChange={(e) => setValues({ ...values, paymentMethodId: e.target.value })}>
             <option value="">None</option>
-            {paymentMethods.map((pm) => (
+            {visiblePaymentMethods.map((pm) => (
               <option key={pm.id} value={pm.id}>{pm.name}</option>
             ))}
           </select>
