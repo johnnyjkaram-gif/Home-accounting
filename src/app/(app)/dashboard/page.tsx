@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
-import { Wallet, TrendingUp, TrendingDown, PiggyBank, HandCoins, Users, CalendarClock, ArrowRight } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, PiggyBank, HandCoins, CalendarClock, ArrowRight } from 'lucide-react';
 import { getCurrentSession } from '@/lib/auth';
 import { getDashboardData, type PeriodKey } from '@/lib/server/dashboard';
 import { formatMoney } from '@/lib/currency';
@@ -42,7 +42,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         <StatCard label={`Expenses (${d.period.label})`} value={formatMoney(d.totalExpenses, c)} icon={TrendingDown} tone="negative" />
         <StatCard label={`Net Cash Flow (${d.period.label})`} value={formatMoney(d.netCashFlow, c)} icon={PiggyBank} tone={d.netCashFlow >= 0 ? 'positive' : 'negative'} />
         <StatCard label="Total Debt" value={formatMoney(d.totalDebt, c)} icon={HandCoins} tone={d.totalDebt > 0 ? 'warning' : 'default'} />
-        <StatCard label="Receivables" value={formatMoney(d.totalReceivables, c)} icon={Users} tone="default" />
         <StatCard label="Upcoming Bills (14d)" value={formatMoney(d.upcomingBillsTotal, c)} icon={CalendarClock} tone={d.upcomingBillsTotal > 0 ? 'warning' : 'default'} />
         <StatCard label="Net Balance" value={formatMoney(d.netCashFlow, c)} icon={d.netCashFlow >= 0 ? TrendingUp : TrendingDown} tone={d.netCashFlow >= 0 ? 'positive' : 'negative'} sub="Income − Expenses" />
       </div>
