@@ -11,10 +11,20 @@ import { cn } from '@/lib/utils';
 
 type Action = 'income' | 'expense' | 'transfer' | 'debt' | null;
 
-export function QuickAddMenu({ className }: { className?: string }) {
+export function QuickAddMenu({
+  className,
+  variant = 'default',
+}: {
+  className?: string;
+  /** 'fab' is the floating round button used on mobile — see app layout.tsx.
+   * It sits near the bottom of the screen, so its menu opens upward
+   * instead of downward to stay on screen. */
+  variant?: 'default' | 'fab';
+}) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<Action>(null);
   const router = useRouter();
+  const isFab = variant === 'fab';
 
   function close() {
     setActive(null);
@@ -33,14 +43,28 @@ export function QuickAddMenu({ className }: { className?: string }) {
 
   return (
     <div className={cn('relative', className)}>
-      <button className="btn-primary" onClick={() => setOpen((o) => !o)}>
-        <Plus className="h-4 w-4" /> Quick Add <ChevronDown className="h-3.5 w-3.5" />
+      <button
+        className={cn(
+          isFab
+            ? 'h-14 w-14 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg flex items-center justify-center'
+            : 'btn-primary',
+        )}
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Quick Add"
+      >
+        {isFab ? (
+          <Plus className="h-6 w-6" />
+        ) : (
+          <>
+            <Plus className="h-4 w-4" /> Quick Add <ChevronDown className="h-3.5 w-3.5" />
+          </>
+        )}
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-2 w-56 card p-1.5 z-50 animate-fade-in">
+          <div className={cn('absolute right-0 w-56 card p-1.5 z-50 animate-fade-in', isFab ? 'bottom-full mb-2' : 'mt-2')}>
             {items.map((item) => (
               <button
                 key={item.key}

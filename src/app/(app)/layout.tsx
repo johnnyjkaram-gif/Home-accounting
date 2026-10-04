@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
         <MobileNav />
         <div className="md:hidden fixed right-4 bottom-20 z-30">
-          <QuickAddMenu />
+          <QuickAddMenu variant="fab" />
         </div>
       </div>
     </AppDataProvider>
