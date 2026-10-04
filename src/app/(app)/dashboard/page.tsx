@@ -40,7 +40,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         <StatCard label="Current Balance" value={formatMoney(d.currentBalance, c)} icon={Wallet} tone={d.currentBalance >= 0 ? 'default' : 'negative'} />
         <StatCard label={`Income (${d.period.label})`} value={formatMoney(d.totalIncome, c)} icon={TrendingUp} tone="positive" />
         <StatCard label={`Expenses (${d.period.label})`} value={formatMoney(d.totalExpenses, c)} icon={TrendingDown} tone="negative" />
-        <StatCard label="Savings (Net Cash Flow)" value={formatMoney(d.netCashFlow, c)} icon={PiggyBank} tone={d.netCashFlow >= 0 ? 'positive' : 'negative'} />
+        <StatCard label={`Net Cash Flow (${d.period.label})`} value={formatMoney(d.netCashFlow, c)} icon={PiggyBank} tone={d.netCashFlow >= 0 ? 'positive' : 'negative'} />
         <StatCard label="Total Debt" value={formatMoney(d.totalDebt, c)} icon={HandCoins} tone={d.totalDebt > 0 ? 'warning' : 'default'} />
         <StatCard label="Receivables" value={formatMoney(d.totalReceivables, c)} icon={Users} tone="default" />
         <StatCard label="Upcoming Bills (14d)" value={formatMoney(d.upcomingBillsTotal, c)} icon={CalendarClock} tone={d.upcomingBillsTotal > 0 ? 'warning' : 'default'} />
