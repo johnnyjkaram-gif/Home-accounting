@@ -13,7 +13,7 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useAppData } from '@/components/app-data-context';
 import { formatMoney } from '@/lib/currency';
 import { formatDateLong } from '@/lib/utils';
-import { deleteDebt } from '@/lib/actions/debts';
+import { deleteDebt, deleteDebtPayment } from '@/lib/actions/debts';
 import { toast } from 'sonner';
 
 export function DebtsPageClient({ debts }: { debts: any[] }) {
@@ -33,6 +33,14 @@ export function DebtsPageClient({ debts }: { debts: any[] }) {
     if (!ok) return;
     const res = await deleteDebt(id);
     if (res.ok) { toast.success('Debt deleted'); router.refresh(); }
+    else toast.error(res.error);
+  }
+
+  async function onDeletePayment(paymentId: string) {
+    const ok = await confirm('Remove this payment?', 'The amount will be added back to the remaining balance.');
+    if (!ok) return;
+    const res = await deleteDebtPayment(paymentId);
+    if (res.ok) { toast.success('Payment removed'); setViewingHistory(null); router.refresh(); }
     else toast.error(res.error);
   }
 
@@ -107,7 +115,16 @@ export function DebtsPageClient({ debts }: { debts: any[] }) {
               {viewingHistory.payments.map((p: any) => (
                 <div key={p.id} className="flex items-center justify-between py-2.5 text-sm">
                   <span className="text-muted-foreground">{formatDateLong(p.date)}</span>
-                  <span className="font-medium">{formatMoney(p.amount, viewingHistory.currency)}</span>
+                  <span className="flex items-center gap-3">
+                    <span className="font-medium">{formatMoney(p.amount, viewingHistory.currency)}</span>
+                    <button
+                      className="text-muted-foreground hover:text-danger"
+                      title="Remove this payment"
+                      onClick={() => onDeletePayment(p.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
                 </div>
               ))}
             </div>

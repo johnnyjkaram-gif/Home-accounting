@@ -115,3 +115,49 @@ export async function addDebtPayment(raw: unknown): Promise<ActionResult<{ id: s
     return { id: data.debtId };
   });
 }
+
+/**
+ * Undoes a payment recorded by mistake: restores it to the debt's remaining
+ * balance and removes the linked transaction if the payment was tied to an
+ * account. DebtPayment rows aren't stored with a direct link to the
+ * transaction they created, so the matching transaction is found by
+ * debt/account/amount/date (all set identically at creation time in
+ * addDebtPayment above).
+ */
+export async function deleteDebtPayment(paymentId: string): Promise<ActionResult<{ debtId: string }>> {
+  return safeAction(async () => {
+    const { householdId } = await requireHousehold();
+    const payment = await prisma.debtPayment.findFirst({
+      where: { id: paymentId, debt: { householdId } },
+      include: { debt: true },
+    });
+    if (!payment) throw new Error('Payment not found');
+
+    const restoredRemaining = Math.min(payment.debt.originalAmount, payment.debt.remainingAmount + payment.amount);
+
+    const ops: any[] = [
+      prisma.debtPayment.delete({ where: { id: paymentId } }),
+      prisma.debt.update({ where: { id: payment.debtId }, data: { remainingAmount: restoredRemaining } }),
+    ];
+
+    if (payment.accountId) {
+      const linkedTransaction = await prisma.transaction.findFirst({
+        where: {
+          debtId: payment.debtId,
+          type: 'DEBT_PAYMENT',
+          accountId: payment.accountId,
+          amount: payment.amount,
+          date: payment.date,
+        },
+      });
+      if (linkedTransaction) ops.push(prisma.transaction.delete({ where: { id: linkedTransaction.id } }));
+    }
+
+    await prisma.$transaction(ops);
+
+    revalidatePath('/debts');
+    revalidatePath('/dashboard');
+    revalidatePath('/transactions');
+    return { debtId: payment.debtId };
+  });
+}
