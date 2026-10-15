@@ -119,7 +119,25 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  pushSubscriptions PushSubscription[]
+
   @@index([householdId])
+}
+
+// Registered device/browser for Web Push. One row per browser subscription;
+// a person who uses the app on two phones gets two rows. Looked up by
+// endpoint (unique per subscription) so re-enabling on the same device
+// updates the existing row instead of duplicating it.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // ----------------------------------------------------------------------------

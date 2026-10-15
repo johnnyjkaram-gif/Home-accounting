@@ -14,7 +14,7 @@ export async function requireHousehold(requireWrite = true) {
   if (requireWrite && !canWrite(session.user.role)) {
     throw new ActionAuthError('Your account role does not allow making changes.');
   }
-  return { householdId: session.user.householdId, userId: session.user.id, role: session.user.role, baseCurrency: session.user.baseCurrency };
+  return { householdId: session.user.householdId, userId: session.user.id, name: session.user.name, role: session.user.role, baseCurrency: session.user.baseCurrency };
 }
 
 export class ActionAuthError extends Error {}

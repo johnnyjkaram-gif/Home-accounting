@@ -6,10 +6,11 @@ import { transactionSchema, transferSchema } from '@/lib/validations';
 import { requireHousehold, safeAction, type ActionResult } from '@/lib/server/action-utils';
 import { resolveBaseAmount } from '@/lib/server/currency-helper';
 import { nextRunAfter } from '@/lib/recurrence';
+import { notifyOtherHouseholdMembers } from '@/lib/server/push';
 
 export async function createTransaction(raw: unknown): Promise<ActionResult<{ id: string }>> {
   return safeAction(async () => {
-    const { householdId, baseCurrency } = await requireHousehold();
+    const { householdId, baseCurrency, userId, name } = await requireHousehold();
     const data = transactionSchema.parse(raw);
 
     const account = await prisma.account.findFirst({ where: { id: data.accountId, householdId } });
@@ -56,6 +57,12 @@ export async function createTransaction(raw: unknown): Promise<ActionResult<{ id
         recurringRuleId,
       },
     });
+
+    await notifyOtherHouseholdMembers(householdId, userId, {
+      title: data.type === 'INCOME' ? 'New income' : 'New expense',
+      body: `${name ?? 'Someone'} added ${data.amount} ${data.currency} — ${data.description || data.payee || category.name}`,
+      url: data.type === 'INCOME' ? '/income' : '/expenses',
+    }).catch(() => {});
 
     revalidateAll();
     return { id: tx.id };

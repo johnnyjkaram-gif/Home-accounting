@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/modal';
 import { CategoryForm } from '@/components/forms/category-form';
 import { ExchangeRateForm } from '@/components/forms/exchange-rate-form';
 import { FamilyMemberForm } from '@/components/forms/family-member-form';
+import { PushNotificationsToggle } from '@/components/push-notifications-toggle';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useAction } from '@/lib/use-action';
 import { updateGeneralSettings, changePassword, deleteDemoData, deleteAllData, addCurrency, refreshExchangeRates, removeFamilyMember } from '@/lib/actions/settings';
@@ -355,12 +356,23 @@ function FamilyTab({ users, currentRole, currentUserId }: any) {
 
 function NotificationsTab() {
   return (
-    <div className="card p-5 space-y-3 max-w-lg">
-      <div className="flex items-center gap-2 text-sm font-medium"><Bell className="h-4 w-4 text-primary" /> Bill reminders</div>
-      <p className="text-sm text-muted-foreground">Automatically shown in the notification bell for bills due within 3 days, due today, or overdue. No setup needed.</p>
-      <div className="h-px bg-border" />
-      <div className="flex items-center gap-2 text-sm font-medium"><Bell className="h-4 w-4 text-primary" /> Budget alerts</div>
-      <p className="text-sm text-muted-foreground">Shown automatically when a category budget reaches 85% (near limit) or exceeds 100% (over budget) for the current period.</p>
+    <div className="space-y-4 max-w-lg">
+      <div className="card p-5 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium"><Bell className="h-4 w-4 text-primary" /> Push notifications for income &amp; expenses</div>
+        <p className="text-sm text-muted-foreground">
+          When you turn this on, your phone will get a real push notification — even with the app closed — every
+          time another family member adds an income or expense. Each person needs to enable this once, on each
+          device they want notified on; it never notifies you about your own entries.
+        </p>
+        <PushNotificationsToggle />
+      </div>
+      <div className="card p-5 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium"><Bell className="h-4 w-4 text-primary" /> Bill reminders</div>
+        <p className="text-sm text-muted-foreground">Automatically shown in the notification bell for bills due within 3 days, due today, or overdue. No setup needed.</p>
+        <div className="h-px bg-border" />
+        <div className="flex items-center gap-2 text-sm font-medium"><Bell className="h-4 w-4 text-primary" /> Budget alerts</div>
+        <p className="text-sm text-muted-foreground">Shown automatically when a category budget reaches 85% (near limit) or exceeds 100% (over budget) for the current period.</p>
+      </div>
     </div>
   );
 }
