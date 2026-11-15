@@ -177,11 +177,7 @@ export function TransactionListPage({ type, title, description, transactions, to
             currency: editing.currency,
             accountId: editing.accountId,
             categoryId: editing.categoryId ?? '',
-            subcategory: editing.subcategory ?? '',
-            payee: editing.payee ?? '',
             description: editing.description ?? '',
-            paymentMethodId: editing.paymentMethodId ?? '',
-            notes: editing.notes ?? '',
           } : undefined}
           onSuccess={close}
         />
