@@ -1,10 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { MONTH_NAMES } from '@/lib/constants';
+import { startOfWeek, endOfWeek } from '@/lib/utils';
 
-export async function getMonthlyReport(householdId: string, year: number, month: number) {
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 0, 23, 59, 59, 999);
-
+/** Shared by the Daily, Weekly, and Monthly reports — same shape, different date range. */
+async function getPeriodSummary(householdId: string, start: Date, end: Date) {
   const [incomeTx, expenseTx, categories] = await Promise.all([
     prisma.transaction.findMany({ where: { householdId, type: 'INCOME', date: { gte: start, lte: end } }, include: { category: true } }),
     prisma.transaction.findMany({ where: { householdId, type: 'EXPENSE', date: { gte: start, lte: end } }, include: { category: true } }),
@@ -19,12 +18,37 @@ export async function getMonthlyReport(householdId: string, year: number, month:
   const categoryBreakdown = groupByCategory(expenseTx, categories);
 
   return {
-    label: `${MONTH_NAMES[month - 1]} ${year}`,
     start, end,
     totalIncome, totalExpenses, netIncome: totalIncome - totalExpenses, savings: totalIncome - totalExpenses,
     largestExpense, largestIncome, categoryBreakdown,
     incomeCount: incomeTx.length, expenseCount: expenseTx.length,
   };
+}
+
+export async function getDailyReport(householdId: string, date: Date) {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const end = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+  const summary = await getPeriodSummary(householdId, start, end);
+  const label = start.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+  return { label, ...summary };
+}
+
+export async function getWeeklyReport(householdId: string, dateInWeek: Date) {
+  const start = startOfWeek(dateInWeek);
+  const end = endOfWeek(dateInWeek);
+  const summary = await getPeriodSummary(householdId, start, end);
+  const sameMonth = start.getMonth() === end.getMonth();
+  const label = sameMonth
+    ? `${start.toLocaleDateString('en-US', { day: 'numeric' })} – ${end.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`
+    : `${start.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} – ${end.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  return { label, ...summary };
+}
+
+export async function getMonthlyReport(householdId: string, year: number, month: number) {
+  const start = new Date(year, month - 1, 1);
+  const end = new Date(year, month, 0, 23, 59, 59, 999);
+  const summary = await getPeriodSummary(householdId, start, end);
+  return { label: `${MONTH_NAMES[month - 1]} ${year}`, ...summary };
 }
 
 export async function getYearlyReport(householdId: string, year: number) {

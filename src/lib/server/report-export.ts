@@ -1,8 +1,8 @@
 import {
-  getMonthlyReport, getYearlyReport, getExpenseReport, getAccountReport, getSavingsReport, getDebtReport,
+  getDailyReport, getWeeklyReport, getMonthlyReport, getYearlyReport, getExpenseReport, getAccountReport, getSavingsReport, getDebtReport,
 } from '@/lib/server/reports';
 
-export type ReportType = 'monthly' | 'yearly' | 'expense' | 'account' | 'cashflow' | 'savings' | 'debt';
+export type ReportType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'expense' | 'account' | 'cashflow' | 'savings' | 'debt';
 
 export interface ReportTable {
   title: string;
@@ -12,11 +12,39 @@ export interface ReportTable {
 }
 
 /** Produces a flat { title, columns, rows } shape any format (CSV/XLSX/PDF) can render identically. */
-export async function buildReportTable(householdId: string, type: ReportType, params: { year: number; month: number; from?: Date; to?: Date }): Promise<ReportTable | undefined> {
+export async function buildReportTable(householdId: string, type: ReportType, params: { year: number; month: number; date?: Date; from?: Date; to?: Date }): Promise<ReportTable | undefined> {
   const from = params.from ?? new Date(params.year, params.month - 1, 1);
   const to = params.to ?? new Date(params.year, params.month, 0, 23, 59, 59, 999);
 
   switch (type) {
+    case 'daily': {
+      const r = await getDailyReport(householdId, params.date ?? new Date());
+      const summary: [string, string | number][] = [
+        ['Total Income', r.totalIncome], ['Total Expenses', r.totalExpenses], ['Net Income', r.netIncome], ['Savings', r.savings],
+        ['Largest Expense', r.largestExpense ? `${r.largestExpense.description || r.largestExpense.payee || ''} (${r.largestExpense.baseAmount})` : '—'],
+        ['Largest Income', r.largestIncome ? `${r.largestIncome.description || r.largestIncome.payee || ''} (${r.largestIncome.baseAmount})` : '—'],
+      ];
+      return {
+        title: `Daily Report — ${r.label}`,
+        summary,
+        columns: ['Category', 'Amount', 'Transactions'],
+        rows: r.categoryBreakdown.map((c) => [c.name, c.amount, c.count]),
+      };
+    }
+    case 'weekly': {
+      const r = await getWeeklyReport(householdId, params.date ?? new Date());
+      const summary: [string, string | number][] = [
+        ['Total Income', r.totalIncome], ['Total Expenses', r.totalExpenses], ['Net Income', r.netIncome], ['Savings', r.savings],
+        ['Largest Expense', r.largestExpense ? `${r.largestExpense.description || r.largestExpense.payee || ''} (${r.largestExpense.baseAmount})` : '—'],
+        ['Largest Income', r.largestIncome ? `${r.largestIncome.description || r.largestIncome.payee || ''} (${r.largestIncome.baseAmount})` : '—'],
+      ];
+      return {
+        title: `Weekly Report — Week of ${r.label}`,
+        summary,
+        columns: ['Category', 'Amount', 'Transactions'],
+        rows: r.categoryBreakdown.map((c) => [c.name, c.amount, c.count]),
+      };
+    }
     case 'monthly': {
       const r = await getMonthlyReport(householdId, params.year, params.month);
       const summary: [string, string | number][] = [

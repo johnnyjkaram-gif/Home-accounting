@@ -40,6 +40,21 @@ export function endOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
+/** Monday-start week. */
+export function startOfWeek(d: Date): Date {
+  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = date.getDay(); // 0 = Sun, 1 = Mon, ... 6 = Sat
+  const diff = (day === 0 ? -6 : 1) - day;
+  date.setDate(date.getDate() + diff);
+  return date;
+}
+
+export function endOfWeek(d: Date): Date {
+  const start = startOfWeek(d);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 23, 59, 59, 999);
+  return end;
+}
+
 export function startOfYear(d: Date): Date {
   return new Date(d.getFullYear(), 0, 1);
 }

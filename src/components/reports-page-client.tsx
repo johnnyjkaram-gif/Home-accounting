@@ -10,6 +10,8 @@ import { formatMoney } from '@/lib/currency';
 import { MONTH_NAMES } from '@/lib/constants';
 
 const REPORT_TYPES = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly Financial' },
   { value: 'yearly', label: 'Yearly' },
   { value: 'expense', label: 'Expense' },
@@ -19,19 +21,19 @@ const REPORT_TYPES = [
   { value: 'debt', label: 'Debt' },
 ];
 
-export function ReportsPageClient({ type, year, month, data }: { type: string; year: number; month: number; data: any }) {
+export function ReportsPageClient({ type, year, month, date, data }: { type: string; year: number; month: number; date: string; data: any }) {
   const { household } = useAppData();
   const router = useRouter();
   const pathname = usePathname();
   const c = household.baseCurrency;
 
   function update(params: Record<string, string>) {
-    const sp = new URLSearchParams({ type, year: String(year), month: String(month), ...params });
+    const sp = new URLSearchParams({ type, year: String(year), month: String(month), date, ...params });
     router.push(`${pathname}?${sp.toString()}`);
   }
 
   function exportReport(format: string) {
-    const sp = new URLSearchParams({ type, format, year: String(year), month: String(month) });
+    const sp = new URLSearchParams({ type, format, year: String(year), month: String(month), date });
     window.location.href = `/api/reports/export?${sp.toString()}`;
   }
 
@@ -57,6 +59,13 @@ export function ReportsPageClient({ type, year, month, data }: { type: string; y
         ))}
       </div>
 
+      {(type === 'daily' || type === 'weekly') && (
+        <div className="flex items-center gap-2">
+          <input type="date" className="input w-auto" value={date} onChange={(e) => update({ date: e.target.value })} />
+          {data?.label && <span className="text-sm text-muted-foreground">{type === 'weekly' ? `Week of ${data.label}` : data.label}</span>}
+        </div>
+      )}
+
       {(type === 'monthly' || type === 'yearly' || type === 'expense' || type === 'account' || type === 'cashflow') && (
         <div className="flex items-center gap-2">
           {type === 'monthly' && (
@@ -74,7 +83,7 @@ export function ReportsPageClient({ type, year, month, data }: { type: string; y
         <EmptyState icon={FileBarChart} title="No data available" description="Add some transactions to generate this report." />
       ) : (
         <div className="space-y-6">
-          {type === 'monthly' && (
+          {(type === 'daily' || type === 'weekly' || type === 'monthly') && (
             <>
               <div className="grid sm:grid-cols-4 gap-4">
                 <SummaryCard label="Total Income" value={formatMoney(data.totalIncome, c)} />

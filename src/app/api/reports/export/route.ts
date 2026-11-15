@@ -11,13 +11,16 @@ export async function GET(req: NextRequest) {
   const format = sp.get('format') ?? 'csv';
   const year = Number(sp.get('year') ?? new Date().getFullYear());
   const month = Number(sp.get('month') ?? new Date().getMonth() + 1);
+  const date = parseDateParam(sp.get('date'));
   const from = sp.get('from') ? new Date(sp.get('from')!) : undefined;
   const to = sp.get('to') ? new Date(sp.get('to') + 'T23:59:59') : undefined;
 
-  const table = await buildReportTable(session.user.householdId, type, { year, month, from, to });
+  const table = await buildReportTable(session.user.householdId, type, { year, month, date, from, to });
   if (!table) return NextResponse.json({ error: 'Unknown report type' }, { status: 400 });
 
-  const filename = `${type}-report-${year}${type === 'monthly' ? '-' + month : ''}`;
+  const filename = type === 'daily' || type === 'weekly'
+    ? `${type}-report-${sp.get('date') ?? new Date().toISOString().slice(0, 10)}`
+    : `${type}-report-${year}${type === 'monthly' ? '-' + month : ''}`;
 
   if (format === 'csv') {
     const csv = toCsv(table);
@@ -79,4 +82,12 @@ function toCsv(table: { title: string; summary: [string, any][]; columns: string
 function csvCell(v: any): string {
   const s = String(v ?? '');
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** Parses a plain "YYYY-MM-DD" param into a local-midnight Date, avoiding the UTC-shift
+ * that new Date("YYYY-MM-DD") can introduce in negative-offset time zones. */
+function parseDateParam(s: string | null): Date | undefined {
+  const m = s ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(s) : null;
+  if (!m) return undefined;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
 }
