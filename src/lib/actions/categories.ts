@@ -45,10 +45,25 @@ export async function deleteCategory(id: string): Promise<ActionResult<{ id: str
     const { householdId } = await requireHousehold();
     const existing = await prisma.category.findFirst({ where: { id, householdId } });
     if (!existing) throw new Error('Category not found');
-    const usage = await prisma.transaction.count({ where: { categoryId: id } });
-    if (usage > 0) {
-      throw new Error(`This category is used by ${usage} transaction(s). Reassign or delete those first.`);
+
+    // Budgets reference a category with onDelete: Cascade (deleting the category deletes the
+    // budget), so they're not a blocker. Transactions, Bills, and Subscriptions have no cascade —
+    // the database would reject the delete with a raw constraint error, so check each up front
+    // and give a clear, specific message instead. This applies to every category, including the
+    // starter ones seeded at registration — there's nothing special about those at the data level.
+    const [transactionCount, billCount, subscriptionCount] = await Promise.all([
+      prisma.transaction.count({ where: { categoryId: id } }),
+      prisma.bill.count({ where: { categoryId: id } }),
+      prisma.subscription.count({ where: { categoryId: id } }),
+    ]);
+    const blockers: string[] = [];
+    if (transactionCount > 0) blockers.push(`${transactionCount} transaction${transactionCount === 1 ? '' : 's'}`);
+    if (billCount > 0) blockers.push(`${billCount} bill${billCount === 1 ? '' : 's'}`);
+    if (subscriptionCount > 0) blockers.push(`${subscriptionCount} subscription${subscriptionCount === 1 ? '' : 's'}`);
+    if (blockers.length > 0) {
+      throw new Error(`This category is used by ${blockers.join(' and ')}. Reassign or delete those first.`);
     }
+
     await prisma.category.delete({ where: { id } });
     revalidatePath('/settings');
     return { id };

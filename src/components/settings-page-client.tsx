@@ -252,7 +252,7 @@ function CategoriesTab({ categories }: any) {
   function close() { setModalOpen(false); setEditing(null); router.refresh(); }
 
   async function onDelete(id: string) {
-    const ok = await confirm('Delete this category?', 'Categories used by existing transactions cannot be deleted.');
+    const ok = await confirm('Delete this category?', 'Categories used by existing transactions, bills, or subscriptions cannot be deleted — reassign or remove those first.');
     if (!ok) return;
     const res = await deleteCategory(id);
     if (res.ok) { toast.success('Category deleted'); router.refresh(); }
@@ -276,7 +276,7 @@ function CategoriesTab({ categories }: any) {
             <span className="flex items-center gap-2 text-sm font-medium truncate"><span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: c.color }} />{c.name}</span>
             <div className="flex items-center gap-1 shrink-0">
               <button className="btn-ghost btn-sm !px-1.5" onClick={() => { setEditing(c); setModalOpen(true); }}>Edit</button>
-              {!c.isDefault && <button className="btn-ghost btn-sm !px-1.5 text-danger" onClick={() => onDelete(c.id)}><Trash2 className="h-3.5 w-3.5" /></button>}
+              <button className="btn-ghost btn-sm !px-1.5 text-danger" onClick={() => onDelete(c.id)}><Trash2 className="h-3.5 w-3.5" /></button>
             </div>
           </div>
         ))}
