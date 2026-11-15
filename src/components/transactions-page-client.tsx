@@ -200,11 +200,7 @@ export function TransactionsPageClient({ transactions, total, page, pageSize, ca
               currency: editing.currency,
               accountId: editing.accountId,
               categoryId: editing.categoryId ?? '',
-              subcategory: editing.subcategory ?? '',
-              payee: editing.payee ?? '',
               description: editing.description ?? '',
-              paymentMethodId: editing.paymentMethodId ?? '',
-              notes: editing.notes ?? '',
             }}
             onSuccess={close}
           />
