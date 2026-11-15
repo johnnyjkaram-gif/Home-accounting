@@ -213,3 +213,13 @@ export const changePasswordSchema = z
     message: 'New password must be different from the current password',
     path: ['newPassword'],
   });
+
+// For a signed-in user who doesn't know their current password. The session itself is the proof
+// of identity here (no current-password check), so this intentionally skips that field.
+export const setPasswordSchema = z.object({
+  newPassword: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Za-z]/, 'Password must include a letter')
+    .regex(/[0-9]/, 'Password must include a number'),
+});

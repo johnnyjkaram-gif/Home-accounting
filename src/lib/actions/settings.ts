@@ -8,6 +8,7 @@ import {
   currencySchema,
   exchangeRateSchema,
   changePasswordSchema,
+  setPasswordSchema,
   familyMemberSchema,
 } from '@/lib/validations';
 import { requireHousehold, safeAction, type ActionResult } from '@/lib/server/action-utils';
@@ -131,6 +132,17 @@ export async function changePassword(raw: unknown): Promise<ActionResult<undefin
     if (!user) throw new Error('User not found');
     const valid = await bcrypt.compare(data.currentPassword, user.passwordHash);
     if (!valid) throw new Error('Current password is incorrect');
+    const passwordHash = await bcrypt.hash(data.newPassword, 12);
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    return undefined;
+  });
+}
+
+/** For a signed-in user who doesn't know their current password — the session already proves identity. */
+export async function setPasswordWithoutCurrent(raw: unknown): Promise<ActionResult<undefined>> {
+  return safeAction(async () => {
+    const { userId } = await requireHousehold(false);
+    const data = setPasswordSchema.parse(raw);
     const passwordHash = await bcrypt.hash(data.newPassword, 12);
     await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
     return undefined;

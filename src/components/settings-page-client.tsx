@@ -11,7 +11,7 @@ import { FamilyMemberForm } from '@/components/forms/family-member-form';
 import { PushNotificationsToggle } from '@/components/push-notifications-toggle';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useAction } from '@/lib/use-action';
-import { updateGeneralSettings, changePassword, deleteDemoData, deleteAllData, addCurrency, refreshExchangeRates, removeFamilyMember } from '@/lib/actions/settings';
+import { updateGeneralSettings, changePassword, setPasswordWithoutCurrent, deleteDemoData, deleteAllData, addCurrency, refreshExchangeRates, removeFamilyMember } from '@/lib/actions/settings';
 import { deleteCategory, createPaymentMethod, deletePaymentMethod } from '@/lib/actions/categories';
 import { deleteExchangeRate } from '@/lib/actions/settings';
 import { formatDateLong } from '@/lib/utils';
@@ -384,24 +384,58 @@ function SecurityTab() {
     setValues({ currentPassword: '', newPassword: '' });
   });
 
+  const [forgotMode, setForgotMode] = useState(false);
+  const [newPasswordOnly, setNewPasswordOnly] = useState('');
+  const { run: runSetPassword, pending: settingPassword } = useAction(setPasswordWithoutCurrent, () => {
+    toast.success('Password set');
+    setNewPasswordOnly('');
+    setForgotMode(false);
+  });
+
   return (
     <div className="space-y-4 max-w-lg">
-      <form onSubmit={(e) => { e.preventDefault(); run(values); }} className="card p-5 space-y-4">
-        <h2 className="font-semibold flex items-center gap-2"><Lock className="h-4 w-4" /> Change password</h2>
-        <div>
-          <label className="label">Current password</label>
-          <input type="password" required className="input" value={values.currentPassword} onChange={(e) => setValues({ ...values, currentPassword: e.target.value })} />
-        </div>
-        <div>
-          <label className="label">New password</label>
-          <input type="password" required className="input" value={values.newPassword} onChange={(e) => setValues({ ...values, newPassword: e.target.value })} />
-          <p className="text-xs text-muted-foreground mt-1">At least 8 characters, with a letter and a number.</p>
-        </div>
-        <button type="submit" disabled={pending} className="btn-primary">
-          {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-          Update password
-        </button>
-      </form>
+      {!forgotMode ? (
+        <form onSubmit={(e) => { e.preventDefault(); run(values); }} className="card p-5 space-y-4">
+          <h2 className="font-semibold flex items-center gap-2"><Lock className="h-4 w-4" /> Change password</h2>
+          <div>
+            <label className="label">Current password</label>
+            <input type="password" required className="input" value={values.currentPassword} onChange={(e) => setValues({ ...values, currentPassword: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">New password</label>
+            <input type="password" required className="input" value={values.newPassword} onChange={(e) => setValues({ ...values, newPassword: e.target.value })} />
+            <p className="text-xs text-muted-foreground mt-1">At least 8 characters, with a letter and a number.</p>
+          </div>
+          <div className="flex items-center justify-between">
+            <button type="submit" disabled={pending} className="btn-primary">
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Update password
+            </button>
+            <button type="button" className="text-sm text-primary hover:underline" onClick={() => setForgotMode(true)}>
+              Don&apos;t know your current password?
+            </button>
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={(e) => { e.preventDefault(); runSetPassword({ newPassword: newPasswordOnly }); }} className="card p-5 space-y-4">
+          <h2 className="font-semibold flex items-center gap-2"><Lock className="h-4 w-4" /> Set a new password</h2>
+          <p className="text-sm text-muted-foreground">You&apos;re already signed in, so you can set a new password without entering the old one.</p>
+          <div>
+            <label className="label">New password</label>
+            <input type="password" required className="input" value={newPasswordOnly} onChange={(e) => setNewPasswordOnly(e.target.value)} />
+            <p className="text-xs text-muted-foreground mt-1">At least 8 characters, with a letter and a number.</p>
+          </div>
+          <div className="flex items-center justify-between">
+            <button type="submit" disabled={settingPassword} className="btn-primary">
+              {settingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
+              Set password
+            </button>
+            <button type="button" className="text-sm text-muted-foreground hover:underline" onClick={() => setForgotMode(false)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
       <div className="card p-5">
         <h2 className="font-semibold mb-2">Session</h2>
         <p className="text-sm text-muted-foreground">You're signed in with a secure, encrypted session cookie that expires automatically after 30 days of inactivity. Use "Sign out" in the sidebar to end it immediately on this device.</p>
